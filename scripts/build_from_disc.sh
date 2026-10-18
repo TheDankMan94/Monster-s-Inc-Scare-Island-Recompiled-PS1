@@ -88,6 +88,18 @@ if [[ ! -f psxrecomp/runtime/runtime.cmake ]]; then
   fi
 fi
 
+# Framework fixes this title depends on (see patches/psxrecomp/README.md).
+for pf in "$ROOT"/patches/psxrecomp/*.patch; do
+  [[ -f "$pf" ]] || continue
+  if git -C psxrecomp apply --reverse --check "$pf" >/dev/null 2>&1; then
+    echo "  framework patch already applied: $(basename "$pf")"
+  elif git -C psxrecomp apply "$pf"; then
+    echo "  applied framework patch: $(basename "$pf")"
+  else
+    die "framework patch does not apply: $pf (psxrecomp moved past ${PSXRECOMP_PIN:0:8}?)"
+  fi
+done
+
 echo "== 2/5 Building recompiler emitters =="
 if [[ -x build-recompiler/psxrecomp-game && -x build-recompiler/psxrecomp-bios ]]; then
   echo "  already built (delete build-recompiler/ to force)"
@@ -107,8 +119,7 @@ python3 psxrecomp/tools/new_project_layout/probe_disc.py "$CUE" \
   --out-dir disc \
   --write-boot-exe disc \
   --players 1 \
-  --display-name "Monsters, Inc. Scare Island" \
-  --region Europe >/dev/null
+  --display-name "Monsters, Inc. Scare Island" >/dev/null
 
 BOOT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["boot_exe"])' disc_probe.json)"
 SERIAL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["serial"])' disc_probe.json)"
@@ -117,9 +128,24 @@ echo "  disc: $SERIAL  boot EXE: $BOOT  entry: $ENTRY"
 case "$SERIAL" in
   SCES-03759) ;;
   SCES-0376[0-9]) echo "  note: $SERIAL is another PAL language release of Scare Island — supported, names rewired below." ;;
-  SCUS-94635) echo "  note: $SERIAL is the US release (Monsters, Inc. Scream Team) — a different build of the game; it will recompile but this project is tuned for PAL." ;;
+  SCUS-94635) echo "  note: $SERIAL is the US release (Monsters, Inc. Scream Team) — tested: boots, FMV, menus, tutorial gameplay." ;;
   *) echo "  WARNING: $SERIAL is not a known Monsters, Inc. Scare Island serial. Continuing anyway." >&2 ;;
 esac
+
+python3 - "$SERIAL" <<'MERGE'
+import re, sys, pathlib
+serial = sys.argv[1]
+g = pathlib.Path("game.toml"); t = g.read_text(encoding="utf-8")
+enh = pathlib.Path("game.enhancements.toml").read_text(encoding="utf-8")
+for sec in re.findall(r"(?m)^\[([a-z_.]+)\]", enh):
+    t = re.sub(r"(?ms)^\[" + re.escape(sec) + r"\]\n.*?(?=^\[|\Z)", "", t)
+if serial == "SCUS-94635":
+    t = t.replace('name = "Monsters, Inc. Scare Island"', 'name = "Monsters, Inc. Scream Team"')
+    t = t.replace('"Monsters, Inc. Scare Island Recompiled"', '"Monsters, Inc. Scream Team Recompiled"')
+t = t.rstrip() + "\n\n" + enh[enh.index("[video]"):]
+g.write_text(t, encoding="utf-8")
+print("  merged game.enhancements.toml into game.toml")
+MERGE
 
 echo "== 4/5 Wiring boot EXE name =="
 CUR="$(sed -n 's#.*GEN_MARKER "generated/\(.*\)_dispatch\.c".*#\1#p' CMakeLists.txt | head -1)"
@@ -162,7 +188,14 @@ cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
   -DPSXRECOMP_REQUIRE_GAME_C=ON "${EXTRA_CMAKE[@]}"
 cmake --build "$BUILD_DIR" --target psx-runtime -j "$JOBS"
 
+STATE="$BUILD_DIR/mods/state.toml"
+if [[ ! -f "$STATE" ]]; then
+  cp "$ROOT/mods/state.default.toml" "$STATE"
+  echo "  wrote default mod selection: $STATE (PGXP + Fast Loading on, Widescreen off)"
+fi
+
 EXE_NAME="$(cat "$BUILD_DIR/psxrecomp_exe_name-psx-runtime.txt" 2>/dev/null || echo Scareisland_Recompiled)"
 echo
 echo "Done. Run it with:"
 echo "  \"$ROOT/$BUILD_DIR/$EXE_NAME\""
+echo "Toggle Widescreen / PGXP / Fast Loading in: $STATE"

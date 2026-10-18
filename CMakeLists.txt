@@ -56,6 +56,16 @@ psxrecomp_add_game_runtime(psx-runtime
     # CODEGEN_SETUP_SOURCES -- add with recomp-ui / wizard later
 )
 
+# Game-owned trusted mod plugins (selected by mods/preloaded/packages/
+# monstersinc.enhancements). Linked into every runtime variant the framework
+# made, so the package resolves whichever exe the player launches.
+foreach(_mi_t psx-runtime psx-runtime-pgxp)
+    if(TARGET ${_mi_t})
+        target_sources(${_mi_t} PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/monstersinc_mods.c")
+    endif()
+endforeach()
+
 # Stage runtime configs next to the exe for direct build/ launches. Only copy
 # files that exist — never fail POST_BUILD when game_options.toml is absent.
 foreach(_PSX_RUNTIME_CONFIG game.toml game_options.toml)

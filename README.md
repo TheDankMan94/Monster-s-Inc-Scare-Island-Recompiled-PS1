@@ -20,7 +20,7 @@ copyrighted is in this repo.
 | Region | Europe (PAL) |
 | Target disc | SCES-03759 (English), boot EXE `SCES_037.59` |
 | Other PAL releases | SCES-03760 … 03769 (Danish, Dutch, German, Spanish, …) work too; `scripts/build_from_disc.sh` re-wires the boot-EXE name automatically |
-| US release | *Monsters, Inc. Scream Team* (SCUS-94635), a different build, not the target here |
+| US release | *Monsters, Inc. Scream Team* (SCUS-94635), **tested**: boot, FMVs, menus, character select, tutorial gameplay (walk / jump / dialog), save states, zero missed functions |
 | Publisher | Sony Computer Entertainment |
 | Developer | Artificial Mind & Movement (A2M) |
 | Year | 2002 |
@@ -113,6 +113,28 @@ cmake --build build-release --target psx-runtime
 ```
 
 Zip prefix for CI artifacts: `scareisland`.
+
+## Enhancements
+
+All of these were tested on the US disc (SCUS-94635) at 1920×1080.
+
+| Feature | Where | Default | Notes |
+|---|---|---|---|
+| **Upscaling** | `game.enhancements.toml` → `[video] supersampling` | **4×** (1280×960 internal) | 1–4. Clean polygon edges, no artifacts seen. |
+| Texture filtering | `[video] texture_filtering` | `nearest` | `"bilinear"` smooths the texels. |
+| **PGXP precision** | `build-release/mods/state.toml` | **on** | Stops 3D wobble and fixes texture warping. Needs the framework patch in `patches/psxrecomp/` (applied by the build script). |
+| **Fast Loading** | `mods/state.toml` | **on**, 4× | Host-side only; the game can't tell. |
+| CD Speed | `mods/state.toml` (`psx.enhancement.cd-speed`) | off | Guest-visible alternative to Fast Loading. |
+| **Widescreen** 16:9 / 21:9 | `mods/state.toml` (`monstersinc.enhancements` / `widescreen`) | off (experimental) | Real wider 3D view in levels; menus, loading cards and FMVs stay 4:3. Things the game culls at the old 4:3 edge leave dark gaps at the far sides, worse at 21:9. |
+| CRT / scanlines | `[video] crt_filter`, `scanlines` | off | `"crt"`, `"composite"`, `"trinitron"`. Framework feature, not tested on this game. |
+
+Edit `game.enhancements.toml`, not `game.toml`: the disc probe rewrites
+`game.toml` and the build script merges these sections back afterwards.
+`mods/state.default.toml` is copied to `build-release/mods/state.toml` on the
+first build; after that the file is yours.
+
+This repo ships no recomp-ui launcher, so there's no in-game Mods page. The
+toml files above are the controls.
 
 ## Symbols
 
