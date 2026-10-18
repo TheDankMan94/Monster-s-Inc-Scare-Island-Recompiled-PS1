@@ -65,6 +65,27 @@ Optional box art under `launcher_assets/img/` may come from
 [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails)
 (`Named_Boxarts`); see `BOXART_SOURCE.txt` when present.
 
+## Quick start (Windows 10/11)
+
+Uses MSYS2, the toolchain the framework itself builds Windows releases with.
+
+1. Install MSYS2 from <https://www.msys2.org> (default folder `C:\msys64`).
+2. Open **MSYS2 MINGW64** from the Start menu (not "MSYS2 MSYS" or "UCRT64") and run:
+   ```bash
+   pacman -Syu        # if it closes the window, reopen MSYS2 MINGW64 and run it again
+   pacman -S --needed git p7zip mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake \
+     mingw-w64-x86_64-ninja mingw-w64-x86_64-python mingw-w64-x86_64-ccache
+   ```
+3. In the same shell (Windows drives are `/c/...`):
+   ```bash
+   cd /c/Users/$USERNAME
+   git clone --recursive https://github.com/jns630/Monster-s-Inc-Scare-Island-Recompiled-PS1
+   cd Monster-s-Inc-Scare-Island-Recompiled-PS1
+   scripts/build_from_disc.sh "/c/Games/PS1/Monsters Inc/Disney-Pixar Monsters, Inc. - Scream Team (USA).cue"
+   ```
+4. Play: double-click `build-release\Scareisland_Recompiled.exe` in Explorer
+   (or run it from the shell with `--no-launcher`).
+
 ## Quick start (Linux)
 
 You need a **Redump-style BIN/CUE dump of your own disc**. ISO-only rips are

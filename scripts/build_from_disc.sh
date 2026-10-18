@@ -56,9 +56,17 @@ fi
 echo "== 1/5 Checking tools =="
 missing=()
 for t in git python3 cmake ninja; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
-if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1; then missing+=("cc"); fi
+if ! command -v cc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1 \
+   && ! command -v clang >/dev/null 2>&1; then missing+=("gcc"); fi
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "missing: ${missing[*]}" >&2
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      echo "On Windows, run this from the 'MSYS2 MINGW64' shell after:" >&2
+      echo "  pacman -S --needed git mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake \\" >&2
+      echo "    mingw-w64-x86_64-ninja mingw-w64-x86_64-python mingw-w64-x86_64-ccache" >&2
+      exit 1 ;;
+  esac
   echo "On Ubuntu/Debian:" >&2
   echo "  sudo apt install build-essential git python3 cmake ninja-build pkg-config \\" >&2
   echo "    libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \\" >&2
