@@ -1,4 +1,4 @@
-# Scareisland Recompiled
+# Monsters, Inc. Scare Island Recompiled
 
 <!-- retcomm-readme-metrics -->
 [![GitHub downloads (all assets, all releases)](https://img.shields.io/github/downloads/TechnicallyComputers/ScareislandRecomp/total)](https://github.com/TechnicallyComputers/ScareislandRecomp/releases)
@@ -6,18 +6,24 @@
 [![GitHub release](https://img.shields.io/github/v/release/TechnicallyComputers/ScareislandRecomp)](https://github.com/TechnicallyComputers/ScareislandRecomp/releases/latest)
 <!-- /retcomm-readme-metrics -->
 
-Static recompilation of **Scareisland** built on
+Static recompilation of **Disney/Pixar Monsters, Inc. Scare Island** (PS1, PAL) built on
 [psxrecomp](https://github.com/mstan/psxrecomp) and
 [recomp-ui](https://github.com/mstan/recomp-ui).
 
-_Add a short pitch in catalog_identity.json / README._
+The game's MIPS code is translated ahead of time into C and compiled into a
+native Linux / Windows / macOS executable. You supply your own disc; nothing
+copyrighted is in this repo.
 
 | | |
 |---|---|
 | Players | 1 |
-| Region | Europe |
-| Publisher | - |
-| Year | - |
+| Region | Europe (PAL) |
+| Target disc | SCES-03759 (English), boot EXE `SCES_037.59` |
+| Other PAL releases | SCES-03760 … 03769 (Danish, Dutch, German, Spanish, …) work too; `scripts/build_from_disc.sh` re-wires the boot-EXE name automatically |
+| US release | *Monsters, Inc. Scream Team* (SCUS-94635), a different build, not the target here |
+| Publisher | Sony Computer Entertainment |
+| Developer | Artificial Mind & Movement (A2M) |
+| Year | 2002 |
 
 Scaffolded with the New Project Layout. See
 `psxrecomp/docs/GAME_PROJECT_SETUP.md` for the full flow.
@@ -59,13 +65,49 @@ Optional box art under `launcher_assets/img/` may come from
 [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails)
 (`Named_Boxarts`); see `BOXART_SOURCE.txt` when present.
 
-## Quick start (dev)
+## Quick start (Linux)
+
+You need a **Redump-style BIN/CUE dump of your own disc**. ISO-only rips are
+accepted but get normalized; a full multi-track cue is best.
 
 ```bash
-git submodule update --init --recursive
+# 1. Clone WITH submodules. GitHub's "Download ZIP" leaves psxrecomp/ empty.
+git clone --recursive https://github.com/jns630/Monster-s-Inc-Scare-Island-Recompiled-PS1
+cd Monster-s-Inc-Scare-Island-Recompiled-PS1
+
+# 2. Build dependencies (Ubuntu / Debian)
+sudo apt install build-essential git python3 cmake ninja-build pkg-config \
+  libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+  libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols \
+  libegl1-mesa-dev libasound2-dev libpulse-dev libudev-dev libdbus-1-dev
+
+# 3. Disc -> recompiled C -> native exe, in one go
+scripts/build_from_disc.sh "/path/to/Monsters, Inc. - Scare Island (Europe).cue"
+
+# 4. Play
+./build-release/Scareisland_Recompiled
+```
+
+`build_from_disc.sh` builds the recompiler, probes the disc (writing
+`game.toml`, `seeds/ghidra_funcs.txt` and `catalog_identity.json`), keeps the
+boot-EXE name in `CMakeLists.txt` / `codegen_setup.c` in sync with your disc,
+runs Generate and builds `psx-runtime`. Options: `--bios SCPH1001.BIN` to use a
+retail BIOS dump instead of OpenBIOS, `--debug` for a build with the TCP debug
+server (port 4370) on, and `-- -DFOO=BAR` to pass extra CMake flags.
+
+The probe writes your disc's **absolute path** into `game.toml`, so don't
+commit `game.toml` after running it. `git checkout game.toml` restores the
+baseline.
+
+Manual equivalent:
+
+```bash
 ./psxrecomp/tools/ci/build_emitters.sh
-python3 psxrecomp/psxrecomp_cli.py generate \
-  --config game.toml --project-root . --disc disc/<your>.cue
+python3 psxrecomp/tools/new_project_layout/probe_disc.py disc.cue \
+  --write-game-toml game.toml --write-seeds seeds/ghidra_funcs.txt \
+  --write-catalog catalog_identity.json --disc-rel "$PWD/disc.cue" \
+  --out-dir disc --write-boot-exe disc --players 1
+python3 psxrecomp/psxrecomp_cli.py generate --config game.toml --project-root . --disc disc.cue
 cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-release --target psx-runtime
 ```
