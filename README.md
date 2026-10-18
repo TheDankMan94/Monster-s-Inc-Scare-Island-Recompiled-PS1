@@ -65,9 +65,22 @@ Optional box art under `launcher_assets/img/` may come from
 [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails)
 (`Named_Boxarts`); see `BOXART_SOURCE.txt` when present.
 
+## What you need
+
+- **Your own disc image** of the game as a `.cue` + `.bin` pair (Redump-style
+  dumps work best). The US release *Monsters, Inc. Scream Team* (SCUS-94635) is
+  the one tested here; the PAL *Scare Island* discs are supported but untested.
+  Keep the `.cue` and `.bin` in the same folder. Nothing copyrighted is in this
+  repo and none is downloaded for you.
+- A PC that can build C/C++: **Windows 10/11** (via MSYS2, below) or **Linux**.
+- About **10 minutes** for the first build (the game is turned into ~1.4 million
+  lines of C and compiled). Later rebuilds are much faster.
+- A GPU/driver with **OpenGL**. Any normal PC from the last decade has this.
+
 ## Quick start (Windows 10/11)
 
 Uses MSYS2, the toolchain the framework itself builds Windows releases with.
+This was built and launched on Windows 11 with MSYS2 GCC 16.
 
 1. Install MSYS2 from <https://www.msys2.org> (default folder `C:\msys64`).
 2. Open **MSYS2 MINGW64** from the Start menu (not "MSYS2 MSYS" or "UCRT64") and run:
@@ -76,15 +89,20 @@ Uses MSYS2, the toolchain the framework itself builds Windows releases with.
    pacman -S --needed git p7zip mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake \
      mingw-w64-x86_64-ninja mingw-w64-x86_64-python mingw-w64-x86_64-ccache
    ```
-3. In the same shell (Windows drives are `/c/...`):
+   (When asked which toolchain packages to install, press Enter to take all.)
+3. In the same shell. Windows drives are `/c/`, `/d/`, and so on, so `D:\Games`
+   is `/d/Games`:
    ```bash
    cd /c/Users/$USERNAME
-   git clone --recursive https://github.com/jns630/Monster-s-Inc-Scare-Island-Recompiled-PS1
+   git clone --recursive -b fixes https://github.com/TheDankMan94/Monster-s-Inc-Scare-Island-Recompiled-PS1
    cd Monster-s-Inc-Scare-Island-Recompiled-PS1
-   scripts/build_from_disc.sh "/c/Games/PS1/Monsters Inc/Disney-Pixar Monsters, Inc. - Scream Team (USA).cue"
+   scripts/build_from_disc.sh "/d/Games/Monsters Inc/Disney-Pixar Monsters, Inc. - Scream Team (USA).cue"
    ```
+   Put the path to **your** `.cue` file in the quotes. Keep the quotes: the file
+   name has spaces and commas. You do not need to configure git for this step.
 4. Play: double-click `build-release\Scareisland_Recompiled.exe` in Explorer
-   (or run it from the shell with `--no-launcher`).
+   (or run it from the shell with `--no-launcher`). Connect your controller
+   **before** starting the game (see Controls).
 
 ## Quick start (Linux)
 
@@ -93,7 +111,7 @@ accepted but get normalized; a full multi-track cue is best.
 
 ```bash
 # 1. Clone WITH submodules. GitHub's "Download ZIP" leaves psxrecomp/ empty.
-git clone --recursive https://github.com/jns630/Monster-s-Inc-Scare-Island-Recompiled-PS1
+git clone --recursive -b fixes https://github.com/TheDankMan94/Monster-s-Inc-Scare-Island-Recompiled-PS1
 cd Monster-s-Inc-Scare-Island-Recompiled-PS1
 
 # 2. Build dependencies (Ubuntu / Debian)
@@ -103,7 +121,7 @@ sudo apt install build-essential git python3 cmake ninja-build pkg-config \
   libegl1-mesa-dev libasound2-dev libpulse-dev libudev-dev libdbus-1-dev
 
 # 3. Disc -> recompiled C -> native exe, in one go
-scripts/build_from_disc.sh "/path/to/Monsters, Inc. - Scare Island (Europe).cue"
+scripts/build_from_disc.sh "/path/to/your disc.cue"
 
 # 4. Play
 ./build-release/Scareisland_Recompiled
@@ -156,6 +174,45 @@ first build; after that the file is yours.
 
 This repo ships no recomp-ui launcher, so there's no in-game Mods page. The
 toml files above are the controls.
+
+## Controls
+
+Player 1 uses the **first connected gamepad** (`p1_device = "auto"` in
+`game.enhancements.toml`), and the keyboard works at the same time. Connect the
+controller before launching; one plugged in later is not picked up until you
+restart the game.
+
+- Gamepad buttons are mapped in `build-release/input.ini` (created on first
+  run): A = Cross, B = Circle, X = Square, Y = Triangle, bumpers = L1/R1,
+  triggers = L2/R2, Start/Back = Start/Select, stick clicks = L3/R3, D-pad and
+  left stick = movement. The game runs in digital mode.
+- Keyboard keys are in `build-release/keybinds.ini`.
+- To use keyboard only, set `p1_device = "keyboard"` under `[controller]` in
+  `build-release/game.toml` (and in `game.enhancements.toml` so a rebuild keeps it).
+
+## Updating
+
+```bash
+git pull --recurse-submodules
+scripts/build_from_disc.sh "/path/to/your disc.cue"
+```
+
+The build script can be rerun at any time. It skips framework patches that are
+already applied, and it never overwrites `build-release/mods/state.toml`,
+`input.ini` or `keybinds.ini` once they exist.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `error: disc not found` | The path is wrong. List the folder with `ls "/d/your/folder"`. Dumps are often one folder deeper than expected (`Game/Game/Game.cue`). Quote the whole path. |
+| `psxrecomp/` is empty or the build can't find scripts | The clone was made without submodules (or from "Download ZIP"). Run `git submodule update --init --recursive`. |
+| Controller does nothing | Connect it before launching. Check `p1_device = "auto"` is present under `[controller]` in `build-release/game.toml`. If it still fails, try `SDL_JOYSTICK_HIDAPI_XBOX=0 SDL_JOYSTICK_RAWINPUT=1 ./Scareisland_Recompiled.exe`. |
+| Game is slow or stutters | Lower `supersampling` to `2` (or `1`) under `[video]` in `build-release/game.toml`, and in `game.enhancements.toml` so rebuilds keep it. |
+| Widescreen shows dark gaps at the screen edges | Known limit of the experimental mod: the game culls objects at the old 4:3 edge. Use `aspect = "16:9"` rather than `"21:9"`, or turn the mod off. |
+| `too many sections` assembler error (Windows, older binutils; not seen on current MSYS2) | Add `-Wa,-mbig-obj` to the CMake flags: `scripts/build_from_disc.sh "<cue>" -- -DCMAKE_C_FLAGS=-Wa,-mbig-obj`. See `psxrecomp/docs/BUILDING.md`. |
+| `git am` / `git commit` says "Committer identity unknown" | Only needed if you commit or apply patches: `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`. |
+| Warning "BIOS generated/ is STALE" | Harmless. The OpenBIOS backend still links and runs. |
 
 ## Symbols
 
